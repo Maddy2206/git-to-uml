@@ -1,0 +1,24 @@
+{
+  "name": "@git-to-uml/ingest",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@octokit/rest": "^21.1.0",
+    "tar": "^7.4.3",
+    "fs-extra": "^11.2.0",
+    "nanoid": "^5.0.9",
+    "p-timeout": "^6.1.4"
+  },
+  "devDependencies": {
+    "@types/fs-extra": "^11.0.4",
+    "typescript": "^5.7.0",
+    "vitest": "^2.1.0"
+  }
+}
