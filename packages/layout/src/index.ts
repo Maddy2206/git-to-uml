@@ -1,7 +1,6 @@
 export * from "./types";
 export {
   estimateClassBoxSize,
-  estimateFolderBoxSize,
   headerBlockHeight,
   HEADER_FONT_SIZE,
   BODY_FONT_SIZE,
@@ -14,4 +13,6 @@ export {
   MIN_WIDTH,
   MIN_HEIGHT,
 } from "./nodeSize";
+export { layoutGraph } from "./layoutGraph";
 export { layoutClassDiagram } from "./layoutClassDiagram";
+export { layoutArchitecture } from "./layoutArchitecture";

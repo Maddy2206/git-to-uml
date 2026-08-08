@@ -38,6 +38,12 @@ importers:
       react-dom:
         specifier: ^19.0.0
         version: 19.2.8(react@19.2.8)
+      tree-sitter-wasms:
+        specifier: ^0.1.11
+        version: 0.1.13
+      web-tree-sitter:
+        specifier: ^0.25.0
+        version: 0.25.10
     devDependencies:
       '@types/node':
         specifier: ^22.10.0
@@ -108,6 +114,9 @@ importers:
       '@types/fs-extra':
         specifier: ^11.0.4
         version: 11.0.4
+      '@types/node':
+        specifier: ^22.10.0
+        version: 22.20.1
       typescript:
         specifier: ^5.7.0
         version: 5.9.3
@@ -144,6 +153,66 @@ importers:
         specifier: ^2.1.0
         version: 2.1.9(@types/node@22.20.1)(sass@1.51.0)
 
+  packages/parser-core:
+    dependencies:
+      '@git-to-uml/ir':
+        specifier: workspace:*
+        version: link:../ir
+      tree-sitter-wasms:
+        specifier: ^0.1.11
+        version: 0.1.13
+      web-tree-sitter:
+        specifier: ^0.25.0
+        version: 0.25.10
+    devDependencies:
+      '@types/node':
+        specifier: ^22.10.0
+        version: 22.20.1
+      typescript:
+        specifier: ^5.7.0
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.0
+        version: 2.1.9(@types/node@22.20.1)(sass@1.51.0)
+
+  packages/parser-java:
+    dependencies:
+      '@git-to-uml/ir':
+        specifier: workspace:*
+        version: link:../ir
+      '@git-to-uml/parser-core':
+        specifier: workspace:*
+        version: link:../parser-core
+    devDependencies:
+      '@types/node':
+        specifier: ^22.10.0
+        version: 22.20.1
+      typescript:
+        specifier: ^5.7.0
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.0
+        version: 2.1.9(@types/node@22.20.1)(sass@1.51.0)
+
+  packages/parser-python:
+    dependencies:
+      '@git-to-uml/ir':
+        specifier: workspace:*
+        version: link:../ir
+      '@git-to-uml/parser-core':
+        specifier: workspace:*
+        version: link:../parser-core
+    devDependencies:
+      '@types/node':
+        specifier: ^22.10.0
+        version: 22.20.1
+      typescript:
+        specifier: ^5.7.0
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.0
+        version: 2.1.9(@types/node@22.20.1)(sass@1.51.0)
+
   packages/parser-ts:
     dependencies:
       '@git-to-uml/ir':
@@ -153,6 +222,9 @@ importers:
         specifier: ^24.0.0
         version: 24.0.0
     devDependencies:
+      '@types/node':
+        specifier: ^22.10.0
+        version: 22.20.1
       typescript:
         specifier: ^5.7.0
         version: 5.9.3
@@ -177,10 +249,19 @@ importers:
       '@git-to-uml/layout':
         specifier: workspace:*
         version: link:../layout
+      '@git-to-uml/parser-java':
+        specifier: workspace:*
+        version: link:../parser-java
+      '@git-to-uml/parser-python':
+        specifier: workspace:*
+        version: link:../parser-python
       '@git-to-uml/parser-ts':
         specifier: workspace:*
         version: link:../parser-ts
     devDependencies:
+      '@types/node':
+        specifier: ^22.10.0
+        version: 22.20.1
       typescript:
         specifier: ^5.7.0
         version: 5.9.3
@@ -2065,6 +2146,9 @@ packages:
     resolution: {integrity: sha512-65P7iz6X5yEr1cwcgvQxbbIw7Uk3gOy5dIdtZ4rDveLqhrdJP+Li/Hx6tyK0NEb+2GCyneCMJiGqrADCSNk8sQ==}
     engines: {node: '>=8.0'}
 
+  tree-sitter-wasms@0.1.13:
+    resolution: {integrity: sha512-wT+cR6DwaIz80/vho3AvSF0N4txuNx/5bcRKoXouOfClpxh/qqrF4URNLQXbbt8MaAxeksZcZd1j8gcGjc+QxQ==}
+
   ts-dedent@2.3.0:
     resolution: {integrity: sha512-JfJeIHke7y2egdGGgRAvpCwYFUsHlM2gPcrVOxFkznt/4uzQ7HFmvE63iFHVLBJNDuyDOQgijDK/tXH/f6Msjg==}
     engines: {node: '>=6.10'}
@@ -2206,6 +2290,14 @@ packages:
 
   vscode-uri@3.0.8:
     resolution: {integrity: sha512-AyFQ0EVmsOZOlAnxoFOGOq1SQDWAB7C6aqMGS23svWAllfOaxbuFvcT8D1i8z3Gyn8fraVeZNNmN6e9bxxXkKw==}
+
+  web-tree-sitter@0.25.10:
+    resolution: {integrity: sha512-Y09sF44/13XvgVKgO2cNDw5rGk6s26MgoZPXLESvMXeefBf7i6/73eFurre0IsTW6E14Y0ArIzhUMmjoc7xyzA==}
+    peerDependencies:
+      '@types/emscripten': ^1.40.0
+    peerDependenciesMeta:
+      '@types/emscripten':
+        optional: true
 
   webworkify@1.5.0:
     resolution: {integrity: sha512-AMcUeyXAhbACL8S2hqqdqOLqvJ8ylmIbNwUIqQujRSouf4+eUFaXbG6F1Rbu+srlJMmxQWsiU7mOJi0nMBfM1g==}
@@ -4002,6 +4094,8 @@ snapshots:
     dependencies:
       is-number: 7.0.0
 
+  tree-sitter-wasms@0.1.13: {}
+
   ts-dedent@2.3.0: {}
 
   ts-morph@24.0.0:
@@ -4136,6 +4230,8 @@ snapshots:
       vscode-languageserver-protocol: 3.17.5
 
   vscode-uri@3.0.8: {}
+
+  web-tree-sitter@0.25.10: {}
 
   webworkify@1.5.0: {}
 

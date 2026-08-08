@@ -140,5 +140,10 @@ export interface LanguageParser {
   language: SupportedLanguage;
   /** File extensions this parser handles, e.g. ['.ts', '.tsx'] */
   extensions: string[];
-  parseFile(filePath: string, content: string): ParsedFile;
+  /**
+   * Sync for ts-morph (parser-ts), async for tree-sitter-based parsers
+   * (parser-python, parser-java — WASM grammar instantiation is inherently
+   * async). Callers should always `await` the result.
+   */
+  parseFile(filePath: string, content: string): ParsedFile | Promise<ParsedFile>;
 }

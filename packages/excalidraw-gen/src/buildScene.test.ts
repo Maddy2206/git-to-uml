@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { LayoutResult } from "@git-to-uml/layout";
-import { buildClassDiagramScene } from "./buildScene";
+import { buildArchitectureDiagramScene, buildClassDiagramScene } from "./buildScene";
 
 function makeLayout(): LayoutResult {
   return {
@@ -68,5 +68,44 @@ describe("buildClassDiagramScene", () => {
     const animalElements = scene.elements.filter((el) => el.groupIds?.some((g) => g.startsWith("group-animal.ts#Animal-")));
     // rectangle + header + fields divider + fields text + methods divider + methods text
     expect(animalElements.length).toBeGreaterThanOrEqual(4);
+  });
+});
+
+describe("buildArchitectureDiagramScene", () => {
+  function makeArchLayout(): LayoutResult {
+    return {
+      width: 400,
+      height: 300,
+      nodes: [
+        { id: "src/users", label: "src/users", kind: "folder", headerLines: ["src/users"], x: 0, y: 0, width: 160, height: 60 },
+        { id: "src/posts", label: "src/posts", kind: "folder", headerLines: ["src/posts"], x: 0, y: 150, width: 160, height: 60 },
+      ],
+      edges: [
+        {
+          id: "arch-edge-0",
+          kind: "imports",
+          from: "src/posts",
+          to: "src/users",
+          label: "×2",
+          points: [
+            { x: 80, y: 150 },
+            { x: 80, y: 60 },
+          ],
+        },
+      ],
+    };
+  }
+
+  it("produces plain labeled boxes (no compartment dividers) with a dashed import arrow", () => {
+    const scene = buildArchitectureDiagramScene(makeArchLayout());
+
+    const rectIds = scene.elements.filter((el) => el.type === "rectangle").map((el) => el.id);
+    expect(rectIds).toEqual(expect.arrayContaining(["src/users", "src/posts"]));
+    expect(scene.elements.some((el) => el.type === "line")).toBe(false);
+
+    const arrow = scene.elements.find((el) => el.type === "arrow");
+    expect(arrow).toMatchObject({ strokeStyle: "dashed", endArrowhead: "arrow" });
+    expect((arrow as any).startBinding?.elementId).toBe("src/posts");
+    expect((arrow as any).endBinding?.elementId).toBe("src/users");
   });
 });

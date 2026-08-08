@@ -63,9 +63,3 @@ export function estimateClassBoxSize(node: DiagramNode): BoxSize {
 
   return { width, height: Math.max(MIN_HEIGHT, height) };
 }
-
-/** Estimated size of a plain folder/module box for the architecture diagram. */
-export function estimateFolderBoxSize(node: DiagramNode): BoxSize {
-  const width = Math.max(MIN_WIDTH, textWidthPx(node.label, HEADER_FONT_SIZE) + HORIZONTAL_PADDING);
-  return { width, height: 48 };
-}

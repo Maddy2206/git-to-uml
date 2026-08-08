@@ -31,7 +31,12 @@ export default function ViewPage() {
 
   return (
     <div style={{ position: "fixed", inset: 0 }}>
-      <ExcalidrawCanvas scene={stored.scene} height="100vh" bordered={false} />
+      <ExcalidrawCanvas
+        scene={stored.scene}
+        height="100vh"
+        bordered={false}
+        filenameBase={`${stored.owner}-${stored.repo}-${stored.diagramKind}-diagram`}
+      />
     </div>
   );
 }

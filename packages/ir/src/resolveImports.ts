@@ -8,7 +8,7 @@ import type { ModuleIR } from "./types";
  */
 export function resolveImports(modules: Record<string, ModuleIR>): void {
   const knownIds = new Set(Object.keys(modules));
-  const candidateSuffixes = ["", ".ts", ".tsx", ".js", ".jsx", ".py", ".java", "/index.ts", "/index.js"];
+  const candidateSuffixes = ["", ".ts", ".tsx", ".js", ".jsx", ".py", ".java", "/index.ts", "/index.js", "/__init__.py"];
 
   for (const mod of Object.values(modules)) {
     for (const imp of mod.imports) {

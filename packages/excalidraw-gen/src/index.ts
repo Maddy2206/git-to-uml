@@ -1,4 +1,4 @@
-export { buildClassDiagramScene } from "./buildScene";
+export { buildClassDiagramScene, buildArchitectureDiagramScene } from "./buildScene";
 export type { ExcalidrawScene } from "./buildScene";
 export { classBoxSkeleton } from "./classBoxSkeleton";
 export { arrowSkeleton } from "./arrowSkeleton";

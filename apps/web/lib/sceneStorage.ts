@@ -15,6 +15,8 @@ export interface StoredScene {
   owner: string;
   repo: string;
   ref: string;
+  /** Which tab this scene came from — used to build a sensible download filename in /view. */
+  diagramKind: "class" | "architecture";
   scene: ExcalidrawScene;
 }
 
