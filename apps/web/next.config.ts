@@ -22,6 +22,7 @@ const nextConfig: NextConfig = {
     "@git-to-uml/graph",
     "@git-to-uml/layout",
     "@git-to-uml/excalidraw-gen",
+    "@git-to-uml/ai",
   ],
   webpack: (config) => {
     // elkjs (used by @git-to-uml/layout) probes for the optional `web-worker`

@@ -9,6 +9,7 @@ import type { ModuleIR } from "@git-to-uml/ir";
  */
 export type ComponentCategory =
   | "client"
+  | "pages"
   | "api"
   | "application"
   | "database"
@@ -20,6 +21,7 @@ export type ComponentCategory =
 
 export const CATEGORY_LABEL: Record<ComponentCategory, string> = {
   client: "Client / Frontend",
+  pages: "Pages / Routing",
   api: "API Gateway",
   application: "Application Logic",
   database: "Database",
@@ -33,6 +35,7 @@ export const CATEGORY_LABEL: Record<ComponentCategory, string> = {
 /** Rough left-to-right/top-to-bottom presentation order — not load-bearing (elkjs auto-lays-out regardless), just keeps node order stable and sensible. */
 export const CATEGORY_ORDER: ComponentCategory[] = [
   "client",
+  "pages",
   "api",
   "application",
   "auth",
@@ -52,6 +55,23 @@ export const CATEGORY_ORDER: ComponentCategory[] = [
  * generic keywords like `api`/`ui`/`dao` — without it they'd false-positive
  * inside unrelated words.
  */
+/**
+ * Next.js-specific file-convention rules, checked BEFORE the generic
+ * PATH_RULES below — Next.js's routing/middleware filenames are exact and
+ * unambiguous, so they should win outright rather than fall through to
+ * generic keyword matching (which used to misclassify root `middleware.ts`
+ * as "auth" via a blanket `middleware` word match — a coincidence, not an
+ * intentional rule). Matched against the raw (non-hyphenated) lowercased
+ * path, since these depend on an exact filename, not a fuzzy word match.
+ */
+const NEXTJS_PATH_RULES: { pattern: RegExp; category: ComponentCategory }[] = [
+  { pattern: /(^|\/)middleware\.(ts|tsx|js|jsx)$/, category: "infra" },
+  { pattern: /(^|\/)route\.(ts|tsx|js|jsx)$/, category: "api" },
+  { pattern: /^pages\/api\//, category: "api" },
+  { pattern: /(^|\/)(page|layout|template|loading|error|not-found|default)\.(ts|tsx|js|jsx)$/, category: "pages" },
+  { pattern: /^pages\//, category: "pages" },
+];
+
 const PATH_RULES: { pattern: RegExp; category: ComponentCategory }[] = [
   { pattern: /\b(models?|entit(y|ies)|schema|migrations?|repositor(y|ies)|dao|mongo|postgres|mysql|sqlite)\b/, category: "database" },
   { pattern: /\b(middlewares?|auth|guards?|session|jwt)\b/, category: "auth" },
@@ -141,6 +161,11 @@ const PACKAGE_CATEGORY: Record<string, ComponentCategory> = {
  * logic) if nothing matches.
  */
 export function classifyModule(mod: ModuleIR): ComponentCategory {
+  const rawPath = mod.filePath.toLowerCase();
+  for (const rule of NEXTJS_PATH_RULES) {
+    if (rule.pattern.test(rawPath)) return rule.category;
+  }
+
   const path = normalizePath(mod.filePath);
   for (const rule of PATH_RULES) {
     if (rule.pattern.test(path)) return rule.category;

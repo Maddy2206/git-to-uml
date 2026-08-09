@@ -86,4 +86,13 @@ describe("buildArchitectureGraph", () => {
     const graph = buildArchitectureGraph(makeRepo());
     expect(graph.edges).toEqual([{ id: "arch-edge-0", kind: "imports", from: "api", to: "database", label: undefined }]);
   });
+
+  it("lets a per-module override win over classifyModule, while unlisted modules still get the heuristic", () => {
+    // The heuristic would classify userController.ts as "api" — override it to "auth" instead.
+    const graph = buildArchitectureGraph(makeRepo(), { "src/api/userController.ts": "auth" });
+    expect(graph.nodes.map((n) => n.id).sort()).toEqual(["auth", "database"]);
+    // src/models/*.ts weren't in the override map, so they still fall back to classifyModule ("database").
+    const database = graph.nodes.find((n) => n.id === "database")!;
+    expect(database.compartments?.fields).toEqual(["Post", "User"]);
+  });
 });

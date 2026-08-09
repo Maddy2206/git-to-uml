@@ -87,6 +87,20 @@ export interface FunctionIR {
   filePath: string;
   isExported?: boolean;
   position: Position;
+  /**
+   * Best-effort role, set by the parser (it has the AST in hand) — drives
+   * the diagram stereotype/box color. `undefined` means a plain function.
+   */
+  role?: "component" | "hook" | "handler";
+  /**
+   * Names from this file's own imports that are actually referenced inside
+   * this function's body — the raw material for inferFunctionUsage's
+   * "calls" edges (see @git-to-uml/ir/inferFunctionUsage). A JSX tag name
+   * like `<Header />` is just an Identifier reference to `Header` like any
+   * other, so this catches component usage too without any JSX-specific
+   * parsing.
+   */
+  usesNames?: string[];
 }
 
 export interface ImportEdge {

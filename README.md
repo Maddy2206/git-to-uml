@@ -11,14 +11,24 @@ real Excalidraw scene you can drag, edit, and export.
   `/tree/<branch>` link all work. No local clone needed.
 - 🌐 **Multi-language** — TypeScript/JavaScript, Python, and Java, parsed in the same pass
   and merged into one diagram for mixed-language repos.
+- ⚛️ **Function-based codebases, not just OOP ones** — React/Next.js components, hooks
+  (`useFoo`), and API route handlers are extracted and boxed just like classes are, styled
+  by role, with "calls" edges inferred from import/usage — so a typical
+  component-and-hooks Next.js repo, which has few or no classes at all, still produces a
+  populated class diagram instead of a near-empty one.
 - 🧩 **Real UML semantics** — extends (hollow triangle), implements (dashed hollow
-  triangle), composition (filled diamond), aggregation (hollow diamond). Relationships are
-  inferred from constructor-injected fields and method return types too, not just
-  explicitly declared properties.
-- 🗺️ **Two diagram types** — a class diagram (classes/interfaces/enums and their
-  relationships) and a system architecture diagram (the handful of logical components —
-  API gateway, database, cache, auth, ...— you'd draw on a whiteboard in a system-design
-  interview, not one box per source file), switchable via tabs.
+  triangle), composition (filled diamond), aggregation (hollow diamond).
+- 🗺️ **Two diagram types** — a class diagram (classes/interfaces/enums/components/hooks/
+  route handlers and their relationships) and a system architecture diagram (the handful of
+  logical components — API gateway, database, cache, auth, pages/routing, ...— you'd draw
+  on a whiteboard in a system-design interview, not one box per source file — with
+  Next.js-aware conventions for `app/**/route.ts`, `app/**/page.tsx`, root `middleware.ts`,
+  and the Pages Router equivalents), switchable via tabs.
+- 🤖 **AI-reasoned relationships & components (optional)** — with a `GROQ_API_KEY` set,
+  Groq (`llama-3.3-70b-versatile`) reasons over the already-extracted class/module structure
+  to judge which UML relationships actually matter and which logical component each file
+  belongs to — noticeably better than the regex/token-matching heuristics alone (which are
+  still what runs, unchanged, without a key, or if a Groq call fails/times out).
 - ✏️ **Fully interactive** — pan, zoom, drag boxes, edit text, regroup — it's a live
   Excalidraw scene, not a static image.
 - 🖥️ **Full-screen view** — open any generated diagram in its own tab for a bigger canvas.
@@ -71,9 +81,11 @@ pnpm --filter @git-to-uml/web dev
 Open [http://localhost:3000](http://localhost:3000), paste a public GitHub repo URL, and
 click **Generate**.
 
-Optionally set `GITHUB_TOKEN` in your environment (or `apps/web/.env.local`) to raise the
-GitHub API rate limit from 60 requests/hour to 5,000/hour — useful if you're generating
-diagrams often.
+Optionally set these in your environment (or `apps/web/.env.local`):
+- `GITHUB_TOKEN` — raises the GitHub API rate limit from 60 requests/hour to 5,000/hour.
+- `GROQ_API_KEY` — turns on AI-reasoned relationships/component classification (free tier
+  at [console.groq.com](https://console.groq.com)). Without it, diagrams still generate
+  normally using the heuristics alone.
 
 ## Project structure
 
@@ -90,9 +102,10 @@ testable interface:
 | `packages/parser-python` | Python parser (tree-sitter) |
 | `packages/parser-java` | Java parser (tree-sitter) |
 | `packages/graph` | Builds the class-diagram graph and the architecture graph — the latter heuristically classifies each file into a logical component (API/database/cache/...) and aggregates imports between components |
+| `packages/ai` | Optional Groq reasoning: judges UML relationships and classifies components, overriding the heuristics above when it succeeds |
 | `packages/layout` | `elkjs`-based layout: box sizing, positions, edge routing — shared by both diagram types |
 | `packages/excalidraw-gen` | Turns a laid-out graph into Excalidraw scene JSON |
-| `packages/pipeline` | Orchestrates ingest → parse → IR → graphs → layout → scenes |
+| `packages/pipeline` | Orchestrates ingest → parse → IR (+ optional AI reasoning) → graphs → layout → scenes |
 
 ## Testing
 
@@ -106,11 +119,13 @@ pnpm typecheck
 | Area | Status |
 |---|---|
 | TypeScript / JavaScript class diagrams | ✅ Shipped |
+| Function/component/hook/route-handler diagrams (React, Next.js) | ✅ Shipped |
 | Interactive full-screen view | ✅ Shipped |
 | System architecture diagram (heuristically classified logical components) | ✅ Shipped |
 | Python parsing | ✅ Shipped |
 | Java parsing | ✅ Shipped |
 | Export to SVG / PNG / `.excalidraw` file | ✅ Shipped |
+| AI-reasoned relationships & component classification (Groq) | ✅ Shipped (optional, `GROQ_API_KEY`) |
 | Private repo support (GitHub OAuth) | 🚧 Planned |
 | Async processing for very large repos | 🚧 Planned |
 | Folder-scoped "focus mode" for large diagrams | 🚧 Planned |
@@ -125,6 +140,12 @@ pnpm typecheck
 - **Cross-language relationships aren't resolved** — a Python class referencing a Java
   class (or similar) won't get an edge; each language's classes/imports are only matched
   against classes/files from the same language.
+- **Function "calls" edges are import/usage-based, not a real call graph** — a function
+  gets a "calls" edge to another function/component/class if it imports it and references
+  that name in its own body (this naturally covers JSX usage too — a `<Header />` tag is
+  just an identifier reference like any other). It only sees usage *across* files via an
+  import, not a function calling another function declared in the same file, and — unlike
+  class relationships — it isn't currently reasoned over by the optional AI pass.
 - **Architecture-diagram component classification is also a heuristic** — each file is
   bucketed into a component (API/database/cache/auth/...) by its path/filename convention
   (`models/`, `*.controller.ts`, ...) and, failing that, the packages it imports
@@ -134,3 +155,9 @@ pnpm typecheck
 - **Public repos only** for now; private-repo support is on the roadmap.
 - Repos larger than **~150MB** are rejected by default (configurable in
   `packages/ingest`).
+- **AI reasoning silently falls back to the heuristics** whenever it doesn't succeed — no
+  `GROQ_API_KEY`, a failed/timed-out call, or a repo over the size guardrails
+  (`packages/ai`: 120 classes for relationships, 300 modules for classification). On Groq's
+  free tier, its own tokens-per-minute rate limit can also trigger this fallback for
+  larger repos even under those guardrails — diagrams still generate normally either way,
+  just using the heuristic for whichever part didn't get an AI result.

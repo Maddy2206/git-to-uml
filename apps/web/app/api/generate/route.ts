@@ -38,6 +38,7 @@ export async function POST(req: NextRequest) {
       ref: body.ref,
       scopeToFolder: body.scopeToFolder,
       githubToken: process.env.GITHUB_TOKEN,
+      groqApiKey: process.env.GROQ_API_KEY,
     });
     return NextResponse.json(result);
   } catch (err) {

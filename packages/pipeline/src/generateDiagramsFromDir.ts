@@ -5,12 +5,15 @@ import { parseJavaProject } from "@git-to-uml/parser-java";
 import { buildArchitectureGraph, buildClassDiagramGraph } from "@git-to-uml/graph";
 import { layoutArchitecture, layoutClassDiagram } from "@git-to-uml/layout";
 import { buildArchitectureDiagramScene, buildClassDiagramScene, type ExcalidrawScene } from "@git-to-uml/excalidraw-gen";
+import { classifyComponentsWithAI, inferRelationshipsWithAI } from "@git-to-uml/ai";
 
 export interface GenerateDiagramsFromDirOptions {
   repoUrl: string;
   commitSha: string;
   /** Only include classes whose filePath starts with this folder prefix. Applies to the class diagram only — the architecture diagram always covers the whole repo. */
   scopeToFolder?: string;
+  /** Optional — enables Groq-reasoned relationships/component classification (see @git-to-uml/ai). Falls back to the existing heuristics when omitted or unavailable. */
+  groqApiKey?: string;
 }
 
 export interface DiagramStats {
@@ -27,6 +30,8 @@ export interface GenerateDiagramsResult {
   classDiagram: ExcalidrawScene;
   architectureDiagram: ExcalidrawScene;
   stats: DiagramStats;
+  /** Whether Groq actually produced usable results for each part, vs. falling back to the heuristic. */
+  aiEnhanced: { relationships: boolean; components: boolean };
 }
 
 /**
@@ -53,13 +58,36 @@ export async function generateDiagramsFromDir(
     parseJavaProject(dir),
   ]);
   const files = [...tsFiles, ...pythonFiles, ...javaFiles];
-  const repoIR = buildRepoIR({ repoUrl: options.repoUrl, commitSha: options.commitSha, files });
+
+  // Both Groq calls only need the raw parsed classes/modules — not the
+  // linked RepoIR (import resolution, inheritance) buildRepoIR produces —
+  // so they can run concurrently with each other right here, before
+  // buildRepoIR. Each returns null (never throws) on a missing key, a
+  // failed/timed-out call, or invalid output, in which case its result
+  // below is simply not used and the existing heuristic runs instead.
+  const [aiEdges, aiCategories] = await Promise.all([
+    inferRelationshipsWithAI(
+      files.flatMap((f) => f.classes),
+      { apiKey: options.groqApiKey },
+    ),
+    classifyComponentsWithAI(
+      files.map((f) => f.module),
+      { apiKey: options.groqApiKey },
+    ),
+  ]);
+
+  const repoIR = buildRepoIR({
+    repoUrl: options.repoUrl,
+    commitSha: options.commitSha,
+    files,
+    compositionEdges: aiEdges ?? undefined,
+  });
 
   const classGraph = buildClassDiagramGraph(repoIR, { scopeToFolder: options.scopeToFolder });
   const classLayout = await layoutClassDiagram(classGraph);
   const classDiagram = buildClassDiagramScene(classLayout);
 
-  const architectureGraph = buildArchitectureGraph(repoIR);
+  const architectureGraph = buildArchitectureGraph(repoIR, aiCategories ?? undefined);
   const architectureLayout = await layoutArchitecture(architectureGraph);
   const architectureDiagram = buildArchitectureDiagramScene(architectureLayout);
 
@@ -74,5 +102,6 @@ export async function generateDiagramsFromDir(
       edgeCount: repoIR.edges.length,
       componentCount: architectureGraph.nodes.length,
     },
+    aiEnhanced: { relationships: aiEdges !== null, components: aiCategories !== null },
   };
 }

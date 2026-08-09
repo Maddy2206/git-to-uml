@@ -1,13 +1,17 @@
 import path from "node:path";
 import fs from "node:fs";
 import {
+  ArrowFunction,
   ClassDeclaration,
   EnumDeclaration,
   FunctionDeclaration,
+  FunctionExpression,
   InterfaceDeclaration,
+  Node,
   Project,
   Scope,
   SourceFile,
+  SyntaxKind,
 } from "ts-morph";
 import type {
   ClassIR,
@@ -228,9 +232,91 @@ function parseEnum(en: EnumDeclaration, relFilePath: string, language: Supported
   };
 }
 
-function parseFunction(fn: FunctionDeclaration, relFilePath: string): FunctionIR | undefined {
-  const name = fn.getName();
-  if (!name) return undefined;
+// ---- Function/component/hook/route-handler extraction ----
+
+const HTTP_METHOD_EXPORT_NAMES = new Set(["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"]);
+/** Matches a Next.js App Router route file — `app/**\/route.ts(x)` — at any depth, or bare `route.ts` at the root. */
+const NEXTJS_ROUTE_FILE_RE = /(^|\/)route\.(ts|tsx|js|jsx)$/;
+const NEXTJS_PAGES_API_RE = /^pages\/api\//;
+const HOOK_NAME_RE = /^use[A-Z]/;
+const COMPONENT_NAME_RE = /^[A-Z]/;
+
+/** Next.js App Router special filenames whose default export is conventionally anonymous (`export default function() {...}`) — synthesize a recognizable name instead of silently dropping them. */
+const SPECIAL_FILE_NAMES: Record<string, string> = {
+  page: "Page",
+  layout: "Layout",
+  template: "Template",
+  loading: "Loading",
+  error: "Error",
+  "not-found": "NotFound",
+  default: "Default",
+};
+
+function deriveNameForAnonymousDefault(relFilePath: string): string | undefined {
+  const fileName = relFilePath.split("/").pop() ?? "";
+  const stem = fileName.replace(/\.(ts|tsx|js|jsx)$/, "");
+  return SPECIAL_FILE_NAMES[stem];
+}
+
+function hasJsx(fnNode: Node): boolean {
+  return (
+    fnNode.getDescendantsOfKind(SyntaxKind.JsxElement).length > 0 ||
+    fnNode.getDescendantsOfKind(SyntaxKind.JsxSelfClosingElement).length > 0 ||
+    fnNode.getDescendantsOfKind(SyntaxKind.JsxFragment).length > 0
+  );
+}
+
+/**
+ * Best-effort role classification — a hook by naming convention, an API
+ * route handler by Next.js file/export convention, or a component when the
+ * name is PascalCase *and* the body actually contains JSX (both signals
+ * together avoid false-positiving on an unrelated PascalCase function).
+ */
+function detectRole(name: string, relFilePath: string, fnNode: Node, isDefaultExport: boolean): FunctionIR["role"] {
+  if (NEXTJS_ROUTE_FILE_RE.test(relFilePath) && HTTP_METHOD_EXPORT_NAMES.has(name)) return "handler";
+  if (NEXTJS_PAGES_API_RE.test(relFilePath) && isDefaultExport) return "handler";
+  if (HOOK_NAME_RE.test(name)) return "hook";
+  if (COMPONENT_NAME_RE.test(name) && hasJsx(fnNode)) return "component";
+  return undefined;
+}
+
+/**
+ * Unwraps a function literal passed directly to a higher-order call —
+ * `const GET = auth((req) => {...})`, `const Foo = memo(() => {...})`,
+ * `const Foo = forwardRef((props, ref) => {...})` — all extremely common in
+ * real Next.js/React code (auth middleware wrappers, `React.memo`,
+ * `React.forwardRef`) and otherwise invisible to this parser, since the
+ * variable's own initializer is a CallExpression, not a function literal.
+ * Only looks one call deep and takes the first function-literal argument —
+ * deeper/more exotic wrapping is out of scope for this heuristic.
+ */
+function unwrapFunctionLike(node: Node): ArrowFunction | FunctionExpression | undefined {
+  if (Node.isArrowFunction(node)) return node;
+  if (Node.isFunctionExpression(node)) return node;
+  if (Node.isCallExpression(node)) {
+    for (const arg of node.getArguments()) {
+      if (Node.isArrowFunction(arg)) return arg;
+      if (Node.isFunctionExpression(arg)) return arg;
+    }
+  }
+  return undefined;
+}
+
+/** Every identifier this function's body references that's also one of its file's own import names — see FunctionIR.usesNames. */
+function computeUsesNames(fnNode: Node, importedNames: Set<string>): string[] {
+  const used = new Set<string>();
+  for (const id of fnNode.getDescendantsOfKind(SyntaxKind.Identifier)) {
+    const text = id.getText();
+    if (importedNames.has(text)) used.add(text);
+  }
+  return [...used];
+}
+
+function parseFunction(fn: FunctionDeclaration, relFilePath: string, importedNames: Set<string>): FunctionIR | undefined {
+  const isDefaultExport = fn.isDefaultExport();
+  const name = fn.getName() || (isDefaultExport ? deriveNameForAnonymousDefault(relFilePath) : undefined);
+  if (!name) return undefined; // anonymous, non-special-file default export — nothing recognizable to call it
+
   return {
     id: `${relFilePath}#${name}`,
     name,
@@ -239,7 +325,51 @@ function parseFunction(fn: FunctionDeclaration, relFilePath: string): FunctionIR
     filePath: relFilePath,
     isExported: fn.isExported(),
     position: positionOf(relFilePath, fn),
+    role: detectRole(name, relFilePath, fn, isDefaultExport),
+    usesNames: computeUsesNames(fn, importedNames),
   };
+}
+
+/**
+ * `const Foo = () => {...}` / `export const useFoo = () => {...}` —
+ * function-declaration syntax (`sourceFile.getFunctions()`) never sees
+ * these at all, but this is how the overwhelming majority of React
+ * components and every arrow-function hook are actually written. Also
+ * unwraps one level of higher-order-call wrapping (`const GET =
+ * auth((req) => {...})`, `const Foo = memo(() => {...})`) via
+ * unwrapFunctionLike — see its docstring for why that matters.
+ */
+function parseVariableFunctions(sourceFile: SourceFile, relFilePath: string, importedNames: Set<string>): FunctionIR[] {
+  const results: FunctionIR[] = [];
+
+  for (const varStmt of sourceFile.getVariableStatements()) {
+    const isExported = varStmt.isExported();
+    for (const decl of varStmt.getDeclarations()) {
+      const initializer = decl.getInitializer();
+      if (!initializer) continue;
+      const fnNode = unwrapFunctionLike(initializer);
+      if (!fnNode) continue;
+
+      const name = decl.getName();
+      if (!name) continue;
+
+      results.push({
+        id: `${relFilePath}#${name}`,
+        name,
+        params: extractParams(fnNode.getParameters()),
+        returnType: fnNode.getReturnTypeNode()?.getText(),
+        filePath: relFilePath,
+        isExported,
+        position: positionOf(relFilePath, decl),
+        // `export default const foo = ...` isn't valid JS/TS syntax, so a
+        // variable-declared function is never itself a default export.
+        role: detectRole(name, relFilePath, fnNode, false),
+        usesNames: computeUsesNames(fnNode, importedNames),
+      });
+    }
+  }
+
+  return results;
 }
 
 function parseImports(sourceFile: SourceFile, rootDir: string): ImportEdge[] {
@@ -298,17 +428,21 @@ export function parseTypeScriptProject(rootDir: string, project: Project = creat
     for (const iface of sourceFile.getInterfaces()) classes.push(parseInterface(iface, relFilePath, language));
     for (const en of sourceFile.getEnums()) classes.push(parseEnum(en, relFilePath, language));
 
+    const imports = parseImports(sourceFile, rootDir);
+    const importedNames = new Set(imports.flatMap((e) => e.specifiers));
+
     const functions: FunctionIR[] = [];
     for (const fn of sourceFile.getFunctions()) {
-      const parsed = parseFunction(fn, relFilePath);
+      const parsed = parseFunction(fn, relFilePath, importedNames);
       if (parsed) functions.push(parsed);
     }
+    functions.push(...parseVariableFunctions(sourceFile, relFilePath, importedNames));
 
     const module: ModuleIR = {
       id: relFilePath,
       filePath: relFilePath,
       language,
-      imports: parseImports(sourceFile, rootDir),
+      imports,
       classes: classes.map((c) => c.id),
       functions: functions.map((f) => f.id),
       loc: sourceFile.getEndLineNumber(),

@@ -55,4 +55,26 @@ describe("classifyModule", () => {
     expect(classifyModule(makeModule("src/infra/kafkaProducer.ts"))).toBe("queue");
     expect(classifyModule(makeModule("src/infra/mongoConnection.ts"))).toBe("database");
   });
+
+  it("classifies Next.js App Router conventions ahead of the generic rules", () => {
+    expect(classifyModule(makeModule("middleware.ts"))).toBe("infra");
+    expect(classifyModule(makeModule("src/middleware.ts"))).toBe("infra");
+    expect(classifyModule(makeModule("app/api/users/route.ts"))).toBe("api");
+    expect(classifyModule(makeModule("app/(dashboard)/webhook/route.ts"))).toBe("api");
+    expect(classifyModule(makeModule("app/dashboard/page.tsx"))).toBe("pages");
+    expect(classifyModule(makeModule("app/layout.tsx"))).toBe("pages");
+    expect(classifyModule(makeModule("app/loading.tsx"))).toBe("pages");
+    expect(classifyModule(makeModule("app/error.tsx"))).toBe("pages");
+  });
+
+  it("classifies Pages Router conventions (pages/api vs plain pages/)", () => {
+    expect(classifyModule(makeModule("pages/api/users.ts"))).toBe("api");
+    expect(classifyModule(makeModule("pages/index.tsx"))).toBe("pages");
+  });
+
+  it("does not let the exact-filename middleware.ts rule false-positive on unrelated middleware files", () => {
+    // A file merely living under a middleware/ directory (not literally named middleware.ts)
+    // still falls through to the generic auth keyword rule, unaffected by the Next.js rule.
+    expect(classifyModule(makeModule("src/middleware/authGuard.ts"))).toBe("auth");
+  });
 });

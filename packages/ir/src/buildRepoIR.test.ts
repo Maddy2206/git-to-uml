@@ -81,4 +81,27 @@ describe("buildRepoIR", () => {
     const composesEdge = repo.edges.find((e) => e.kind === "composes");
     expect(composesEdge).toMatchObject({ from: "car.ts#Car", to: "engine.ts#Engine", label: "engine" });
   });
+
+  it("uses precomputed compositionEdges instead of inferComposition when supplied", () => {
+    const engineFile: ParsedFile = {
+      module: { id: "engine.ts", filePath: "engine.ts", language: "typescript", imports: [], classes: ["engine.ts#Engine"], functions: [], loc: 5 },
+      classes: [makeClass({ id: "engine.ts#Engine", name: "Engine", filePath: "engine.ts" })],
+      functions: [],
+    };
+    const carFile: ParsedFile = {
+      module: { id: "car.ts", filePath: "car.ts", language: "typescript", imports: [], classes: ["car.ts#Car"], functions: [], loc: 5 },
+      // No field typed "Engine" here — inferComposition would find nothing on its own.
+      classes: [makeClass({ id: "car.ts#Car", name: "Car", filePath: "car.ts" })],
+      functions: [],
+    };
+
+    const repo = buildRepoIR({
+      repoUrl: "test/repo",
+      commitSha: "abc123",
+      files: [engineFile, carFile],
+      compositionEdges: [{ id: "ai-edge-0", kind: "composes", from: "car.ts#Car", to: "engine.ts#Engine", label: "ai-inferred" }],
+    });
+
+    expect(repo.edges).toEqual([{ id: "ai-edge-0", kind: "composes", from: "car.ts#Car", to: "engine.ts#Engine", label: "ai-inferred" }]);
+  });
 });

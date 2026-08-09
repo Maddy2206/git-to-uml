@@ -8,7 +8,7 @@ import type { EdgeKind } from "@git-to-uml/ir";
 export interface DiagramNode {
   id: string;
   label: string;
-  kind: "class" | "interface" | "enum" | "folder";
+  kind: "class" | "interface" | "enum" | "folder" | "component" | "hook" | "handler" | "function";
   /**
    * The exact lines the box header renders (e.g. `["«interface»", "Foo"]` or
    * just `["Foo"]` for a plain class) — computed once here so the layout

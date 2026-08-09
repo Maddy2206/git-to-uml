@@ -9,6 +9,8 @@ export interface GenerateDiagramsOptions {
   githubToken?: string;
   /** Only include classes whose filePath starts with this folder prefix. */
   scopeToFolder?: string;
+  /** Optional — enables Groq-reasoned relationships/component classification. Falls back to the existing heuristics when omitted or unavailable. */
+  groqApiKey?: string;
 }
 
 export interface GenerateDiagramsFullResult extends GenerateDiagramsResult {
@@ -35,6 +37,7 @@ export async function generateDiagrams(options: GenerateDiagramsOptions): Promis
       repoUrl: options.repoUrl,
       commitSha,
       scopeToFolder: options.scopeToFolder,
+      groqApiKey: options.groqApiKey,
     });
     return { ...result, owner, repo, ref };
   } finally {

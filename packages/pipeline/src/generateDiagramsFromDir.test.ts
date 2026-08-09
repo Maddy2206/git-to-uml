@@ -48,6 +48,11 @@ describe("generateDiagramsFromDir (end-to-end, network-free)", () => {
     const archRects = archScene.elements.filter((el) => el.type === "rectangle");
     expect(archRects.map((r) => r.id)).toEqual(["application"]);
     expect(archScene.elements.filter((el) => el.type === "arrow")).toHaveLength(0);
+
+    // No groqApiKey passed and (assumed) none set in this test environment
+    // -> both AI calls short-circuit to null -> pure heuristic fallback,
+    // same result as before this feature existed.
+    expect(result.aiEnhanced).toEqual({ relationships: false, components: false });
   });
 
   it("groups files into logical components (API/Database) and aggregates the cross-component import", async () => {

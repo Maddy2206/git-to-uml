@@ -16,11 +16,16 @@ const MAX_LISTED_CLASSES = 12;
  * level. Classes/entities found in each category are listed as a
  * compartment (capped, e.g. the actual table/model names in the Database
  * box) so the box carries real information, not just a label.
+ *
+ * `overrides` (e.g. from an AI classification pass — see @git-to-uml/ai)
+ * lets a specific module's category win over `classifyModule`'s heuristic.
+ * Applied per-module: a module absent from `overrides` still falls back to
+ * the heuristic individually, so a partial AI result is never a problem.
  */
-export function buildArchitectureGraph(repo: RepoIR): DiagramGraph {
+export function buildArchitectureGraph(repo: RepoIR, overrides?: Record<string, ComponentCategory>): DiagramGraph {
   const categoryByModuleId = new Map<string, ComponentCategory>();
   for (const mod of Object.values(repo.modules)) {
-    categoryByModuleId.set(mod.id, classifyModule(mod));
+    categoryByModuleId.set(mod.id, overrides?.[mod.id] ?? classifyModule(mod));
   }
 
   const classNamesByCategory = new Map<ComponentCategory, string[]>();

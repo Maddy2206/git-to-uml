@@ -19,6 +19,10 @@ const KIND_FILL: Record<LayoutNode["kind"], string> = {
   interface: "#b2f2bb",
   enum: "#ffec99",
   folder: "#e9ecef",
+  component: "#d0bfff",
+  hook: "#ffc9c9",
+  handler: "#99e9f2",
+  function: "#ced4da",
 };
 
 /**
